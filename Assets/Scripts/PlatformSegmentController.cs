@@ -9,16 +9,22 @@ public class PlatformSegmentController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
     }
 
-    // This public method will be called when the player hits a platform
+    // This public method is called when the player hits a platform
     public void Explode(float explosionForce, float explosionRadius)
     {
+        // --- THE REAL FIX ---
+        // We scale the explosion force by the current Time.timeScale.
+        // The TimeManager has already slowed time down *in the same frame*, so Time.timeScale is already low (e.g., 0.2f).
+        // This ensures the initial "kick" from the explosion is also reduced, making it look correct in slow motion.
+        float scaledExplosionForce = explosionForce * Time.timeScale;
+
         // Turn off "Is Kinematic" so this segment can be affected by physics.
         if (rb != null)
         {
             rb.isKinematic = false;
         }
 
-        // Find all colliders within the explosion radius around this segment.
+        // Find all colliders within the explosion radius.
         Collider[] colliders = Physics.OverlapSphere(transform.position, explosionRadius);
 
         // Loop through all the colliders we found.
@@ -32,20 +38,18 @@ public class PlatformSegmentController : MonoBehaviour
                 // Make sure the nearby segment also becomes non-kinematic.
                 hitRb.isKinematic = false;
 
-                // Add an explosive force that pushes it up and away from this segment's position.
-                hitRb.AddExplosionForce(explosionForce, transform.position, explosionRadius, 1.0f, ForceMode.Impulse);
+                // Add the EXPLOSION with the NEW SCALED force.
+                hitRb.AddExplosionForce(scaledExplosionForce, transform.position, explosionRadius, 1.0f, ForceMode.Impulse);
             }
         }
     }
 
-    // This will be called by our spawner when we reuse the platforms.
+    // This is called by the LevelSpawner to reset the segment.
     public void ResetSegment()
     {
-        // Re-enable "Is Kinematic" to make the platform static again for its next use.
         if (rb != null)
         {
             rb.isKinematic = true;
-            // Also reset its velocity and rotation from the explosion.
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
         }

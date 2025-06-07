@@ -10,43 +10,63 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float explosionRadius = 5f;
 
     private Rigidbody rb;
-    private bool isGrounded; // We'll add a proper ground check later
+    private bool wasAirborne = false; // Tracks if we were recently in the air
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
     }
 
-    void Update()
+    // Using FixedUpdate for consistent physics checks
+    void FixedUpdate()
     {
-        // Simple jump for now
-        if (Input.GetMouseButtonDown(0))
+        // If our vertical velocity is negative, it means we are falling.
+        if (rb.velocity.y < -0.1f)
         {
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+            wasAirborne = true;
         }
     }
 
-    // This function is called by Unity's physics engine when a collision occurs.
+    void Update()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+            AudioManager.Instance.PlayJumpSound();
+            wasAirborne = true; // Jumping immediately makes us airborne
+        }
+    }
+
     void OnCollisionEnter(Collision collision)
     {
-        // We check the direction of the collision to see if we hit the underside of a platform.
-        // A "normal" is a vector that points directly away from the surface of the collision.
-        // If we hit something from below, the normal will point downwards.
+        // Check if we hit the underside of a platform
         if (collision.GetContact(0).normal.y < -0.5f)
         {
-            // Try to get the PlatformSegmentController from the object we hit.
             PlatformSegmentController segment = collision.gameObject.GetComponent<PlatformSegmentController>();
-
-            // If the object we hit has the script, it's a platform segment.
             if (segment != null)
             {
-                // --- Start the chain reaction! ---
-                // 1. Tell the segment to explode itself and its neighbours.
                 segment.Explode(explosionForce, explosionRadius);
-
-                // 2. Tell the TimeManager to start the slow-motion effect.
                 TimeManager.Instance.DoSlowmotion();
+                AudioManager.Instance.PlayExplosionSound();
             }
+        }
+
+        // Check if we landed on top of a surface
+        // We also check 'wasAirborne' to ensure this only fires once on landing, not while sliding.
+        if (wasAirborne && collision.GetContact(0).normal.y > 0.5f)
+        {
+            AudioManager.Instance.PlayLandingSound();
+            wasAirborne = false; // We are no longer airborne, so reset the flag
+        }
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("DeathZone"))
+        {
+            UIManager.Instance.ShowGameOver();
+            this.enabled = false;
+            rb.isKinematic = true;
         }
     }
 }

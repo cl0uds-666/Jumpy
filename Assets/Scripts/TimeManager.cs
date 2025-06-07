@@ -1,57 +1,66 @@
 using UnityEngine;
-using System.Collections; // Required for Coroutines
+using System.Collections;
 
 public class TimeManager : MonoBehaviour
 {
-    // Singleton pattern to make it easily accessible
     public static TimeManager Instance { get; private set; }
 
-    [SerializeField] private float slowdownFactor = 0.2f; // How much to slow down time (e.g., 0.2f is 20% speed)
-    [SerializeField] private float slowdownDuration = 1f;  // How long the slow-motion effect should last in real time
+    [SerializeField] private float slowdownFactor = 0.2f;
+    [SerializeField] private float slowdownDuration = 1f;
+
+    // We need to store the original physics timestep value
+    private float originalFixedDeltaTime;
 
     void Awake()
     {
-        // Set up the singleton
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
         }
+        else
+        {
+            Instance = this;
+        }
+
+        // --- THE FIX: PART 1 ---
+        // At the start, we save the default physics timestep.
+        originalFixedDeltaTime = Time.fixedDeltaTime;
     }
 
-    // This is the public function other scripts will call
     public void DoSlowmotion()
     {
-        // Stop any previous slowmotion coroutine before starting a new one
         StopAllCoroutines();
         StartCoroutine(SlowdownCoroutine());
     }
 
     private IEnumerator SlowdownCoroutine()
     {
-        // --- Slow down time ---
+        // --- THE FIX: PART 2 ---
+        // Slow down both the game time AND the physics timestep.
         Time.timeScale = slowdownFactor;
+        Time.fixedDeltaTime = originalFixedDeltaTime * Time.timeScale;
 
-        // --- Wait for the duration ---
-        // We need to wait for slowdownDuration in real time, not game time
-        // so we use WaitForSecondsRealtime.
+        // Wait for the duration in real time
         yield return new WaitForSecondsRealtime(slowdownDuration);
 
-        // --- Speed time back up to normal ---
-        // We smoothly interpolate back to 1 over a short period.
+        // --- THE FIX: PART 3 ---
+        // Smoothly transition back to normal speed.
         float transitionDuration = 0.5f;
         float elapsedTime = 0f;
 
         while (elapsedTime < transitionDuration)
         {
+            // We interpolate both values back to their original state.
             Time.timeScale = Mathf.Lerp(slowdownFactor, 1f, elapsedTime / transitionDuration);
-            elapsedTime += Time.unscaledDeltaTime; // Use unscaled time for the transition
+            Time.fixedDeltaTime = originalFixedDeltaTime * Time.timeScale;
+
+            elapsedTime += Time.unscaledDeltaTime;
             yield return null;
         }
 
-        Time.timeScale = 1f; // Ensure it's exactly 1 at the end
+        // --- THE FIX: PART 4 ---
+        // Ensure both values are exactly back to their defaults at the end.
+        Time.timeScale = 1f;
+        Time.fixedDeltaTime = originalFixedDeltaTime;
     }
 }

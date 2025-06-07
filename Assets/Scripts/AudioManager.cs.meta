@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 0f4cb69aa7644774bbdd5b7d6656d727
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - jumpSound: {fileID: 8300000, guid: bea59c089390ce54c98bf71ab60322ca, type: 3}
+  - landingSound: {fileID: 8300000, guid: 8d998e8b835438a44b48678e4f325eb6, type: 3}
+  - highScoreSound: {fileID: 8300000, guid: daf8354b6dae87c479f73e691b6e54cd, type: 3}
+  - explosionSound: {fileID: 8300000, guid: cbc9303549ad589428661f53a68a7c7e, type: 3}
+  - backgroundMusic: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
