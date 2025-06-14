@@ -7,8 +7,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float jumpForce = 12f;
 
     [Header("Gameplay Toggles (Developer Default)")]
-    [Tooltip("Sets the default value for the airborne momentum feature at the start of the game.")]
-    public bool inheritAirborneMomentum = true; // MUST BE PUBLIC
+    public bool inheritAirborneMomentum = true;
 
     [Header("Explosion on Hit")]
     [SerializeField] private float explosionForce = 500f;
@@ -17,6 +16,7 @@ public class PlayerController : MonoBehaviour
     private Rigidbody rb;
     private AirborneRotator airborneRotator;
     private bool wasAirborne = false;
+    private bool isFalling = false;
 
     void Start()
     {
@@ -27,7 +27,15 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (rb.velocity.y < -0.1f) { wasAirborne = true; }
+        if (rb.velocity.y < -6f)
+        {
+            if (!isFalling)
+            {
+                isFalling = true;
+                AudioManager.Instance.StartFallingWind();
+            }
+            wasAirborne = true;
+        }
     }
 
     void Update()
@@ -72,6 +80,8 @@ public class PlayerController : MonoBehaviour
 
         if (wasAirborne && collision.GetContact(0).normal.y > 0.5f)
         {
+            isFalling = false;
+            AudioManager.Instance.StopFallingWind();
             AudioManager.Instance.PlayLandingSound();
             wasAirborne = false;
             RingRotator rotator = collision.gameObject.GetComponentInParent<RingRotator>();
@@ -87,6 +97,15 @@ public class PlayerController : MonoBehaviour
     {
         if (other.CompareTag("DeathZone"))
         {
+            // --- THIS IS THE FIX ---
+            // 1. The player is no longer falling, they have impacted the ground.
+            isFalling = false;
+            // 2. Stop the wind sound.
+            AudioManager.Instance.StopFallingWind();
+            // 3. Play a final landing/impact sound.
+            AudioManager.Instance.PlayLandingSound();
+
+            // 4. Trigger the rest of the game over sequence.
             UIManager.Instance.ShowGameOver();
             this.enabled = false;
             rb.isKinematic = true;
