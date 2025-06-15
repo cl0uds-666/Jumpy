@@ -1,20 +1,23 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-// This script now correctly handles the start platform and randomizes the alternating pattern.
 public class SimpleRandomSpawner : MonoBehaviour
 {
     [Header("Required Objects")]
     [SerializeField] private Transform playerTransform;
 
     [Header("Ring Prefabs")]
-    [Tooltip("The prefab for the very first, non-moving ring.")]
     [SerializeField] private GameObject startRingPrefab;
-    [Tooltip("The list of normal, gapped rings to spawn.")]
     [SerializeField] private GameObject[] ringPrefabs;
+
+    [Header("Collectible Prefabs")]
+    [SerializeField] private GameObject coinPrefab;
+    [Range(0, 1)][SerializeField] private float coinSpawnChance = 0.5f;
 
     [Header("Spawning Logic")]
     [SerializeField] private float verticalSpacing = 5f;
+    [Tooltip("The radius of your platforms from the center. This is used to position the coins correctly.")]
+    [SerializeField] private float platformRadius = 5f; // NEW
     [SerializeField] private int initialRings = 5;
 
     [Header("Rotation Speed Settings (Start)")]
@@ -31,15 +34,14 @@ public class SimpleRandomSpawner : MonoBehaviour
 
     private Queue<GameObject> activeRings = new Queue<GameObject>();
     private List<GameObject> ringPool = new List<GameObject>();
+    private List<GameObject> coinPool = new List<GameObject>();
     private float nextSpawnY;
     private bool nextRingShouldSpinRight = true;
 
     void Start()
     {
-        // --- NEW: Randomize the starting direction of the pattern ---
         nextRingShouldSpinRight = (Random.value > 0.5f);
-
-        InitializePool();
+        InitializePools();
         SpawnFirstRing();
         for (int i = 1; i < initialRings; i++)
         {
@@ -56,59 +58,71 @@ public class SimpleRandomSpawner : MonoBehaviour
         CleanupRings();
     }
 
-    void SpawnFirstRing()
-    {
-        if (startRingPrefab == null)
-        {
-            Debug.LogError("Start Ring Prefab is not assigned in the Spawner!");
-            return;
-        }
-        GameObject ring = Instantiate(startRingPrefab, transform.position, Quaternion.identity);
-
-        // --- NEW: Ensure the start ring is always stationary ---
-        RingRotator rotator = ring.GetComponent<RingRotator>();
-        if (rotator != null)
-        {
-            rotator.rotationSpeed = 0f; // Force the start ring to not move.
-        }
-
-        ActivateRing(ring);
-        nextSpawnY += verticalSpacing;
-    }
-
     void SpawnRing()
     {
         GameObject ring = GetPooledRing();
         if (ring == null) return;
 
+        // --- NEW: We need the ring's rotation to calculate the coin position ---
+        Quaternion ringRotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
+
         ring.transform.position = new Vector3(0, nextSpawnY, 0);
-        ring.transform.rotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
+        ring.transform.rotation = ringRotation;
 
         RingRotator rotator = ring.GetComponent<RingRotator>();
         if (rotator != null)
         {
             int currentScore = UIManager.Instance.GetCurrentScore();
             float difficultyPercent = Mathf.Clamp01((float)currentScore / scoreToReachMaxDifficulty);
-
             float currentMinSpeed = Mathf.Lerp(minSpeed_Start, maxSpeed_End * 0.8f, difficultyPercent);
             float currentMaxSpeed = Mathf.Lerp(maxSpeed_Start, maxSpeed_End, difficultyPercent);
             float speed = Random.Range(currentMinSpeed, currentMaxSpeed);
-
-            if (!nextRingShouldSpinRight)
-            {
-                speed *= -1;
-            }
-
+            if (!nextRingShouldSpinRight) { speed *= -1; }
             rotator.rotationSpeed = speed;
             nextRingShouldSpinRight = !nextRingShouldSpinRight;
         }
 
         ActivateRing(ring);
+
+        if (Random.value < coinSpawnChance)
+        {
+            // Pass the new ring's rotation to the coin spawner
+            SpawnCoin(ringRotation);
+        }
+
         nextSpawnY += verticalSpacing;
     }
 
-    #region Standard Pooling and Cleanup
-    private void InitializePool()
+    // --- UPDATED METHOD ---
+    void SpawnCoin(Quaternion platformRotation)
+    {
+        GameObject coin = GetPooledCoin();
+        if (coin == null) return;
+
+        // 1. Position the coin vertically, halfway between platforms.
+        float coinY = nextSpawnY - (verticalSpacing / 2f);
+
+        // 2. Calculate the position of the gap. We assume the gap is at the "front" (Vector3.forward) of the prefab.
+        // We rotate this direction by the platform's rotation and scale it by the radius.
+        Vector3 gapPosition = platformRotation * (Vector3.forward * platformRadius);
+
+        // 3. Set the coin's final position.
+        coin.transform.position = new Vector3(gapPosition.x, coinY, gapPosition.z);
+        coin.SetActive(true);
+    }
+
+    void SpawnFirstRing()
+    {
+        if (startRingPrefab == null) { Debug.LogError("Start Ring Prefab not assigned!"); return; }
+        GameObject ring = Instantiate(startRingPrefab, transform.position, Quaternion.identity);
+        RingRotator rotator = ring.GetComponent<RingRotator>();
+        if (rotator != null) { rotator.rotationSpeed = 0f; }
+        ActivateRing(ring);
+        nextSpawnY += verticalSpacing;
+    }
+
+    #region Pooling and Cleanup
+    private void InitializePools()
     {
         if (ringPrefabs.Length == 0) { Debug.LogError("No Ring Prefabs assigned!"); return; }
         for (int i = 0; i < poolSize; i++)
@@ -117,6 +131,13 @@ public class SimpleRandomSpawner : MonoBehaviour
             GameObject ring = Instantiate(prefab, transform);
             ring.SetActive(false);
             ringPool.Add(ring);
+        }
+        if (coinPrefab == null) { Debug.LogError("No Coin Prefab assigned!"); return; }
+        for (int i = 0; i < poolSize; i++)
+        {
+            GameObject coin = Instantiate(coinPrefab, transform);
+            coin.SetActive(false);
+            coinPool.Add(coin);
         }
     }
 
@@ -148,7 +169,15 @@ public class SimpleRandomSpawner : MonoBehaviour
     {
         for (int i = 0; i < ringPool.Count; i++) { int randomIndex = Random.Range(i, ringPool.Count); GameObject temp = ringPool[i]; ringPool[i] = ringPool[randomIndex]; ringPool[randomIndex] = temp; }
         for (int i = 0; i < ringPool.Count; i++) { if (!ringPool[i].activeInHierarchy) { return ringPool[i]; } }
-        Debug.LogWarning("Pool is empty! Consider increasing pool size.");
+        return null;
+    }
+
+    GameObject GetPooledCoin()
+    {
+        for (int i = 0; i < coinPool.Count; i++)
+        {
+            if (!coinPool[i].activeInHierarchy) { return coinPool[i]; }
+        }
         return null;
     }
     #endregion
