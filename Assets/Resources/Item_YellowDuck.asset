@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ce914fa785fa6c498d677e40baf90f8, type: 3}
+  m_Name: Item_YellowDuck
+  m_EditorClassIdentifier: 
+  itemName: Yellow Duck
+  itemDescription: This is a duck, he is yellow.
+  itemIcon: {fileID: 21300000, guid: 0b64a80fc4aa97145b32593564fad7b2, type: 3}
+  itemPrice: 10
+  itemType: 0
+  itemPrefab: {fileID: 114662, guid: 325beb5088b92ec4786c0a2e5965c008, type: 3}

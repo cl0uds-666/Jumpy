@@ -13,53 +13,46 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float explosionForce = 500f;
     [SerializeField] private float explosionRadius = 5f;
 
+    // --- Private State ---
     private Rigidbody rb;
     private AirborneRotator airborneRotator;
-    private bool wasAirborne = false;
-    private bool isFalling = false;
+    private ModelRotator modelRotator;
+    private bool isGrounded = false;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         airborneRotator = GetComponent<AirborneRotator>();
-        airborneRotator.enabled = false;
-    }
+        modelRotator = GetComponentInChildren<ModelRotator>();
 
-    void FixedUpdate()
-    {
-        if (rb.velocity.y < -6f)
-        {
-            if (!isFalling)
-            {
-                isFalling = true;
-                AudioManager.Instance.StartFallingWind();
-            }
-            wasAirborne = true;
-        }
+        airborneRotator.enabled = false;
     }
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (isGrounded && Input.GetMouseButtonDown(0))
         {
+            isGrounded = false;
+
+            float lastPlatformSpeed = 0;
+            if (transform.parent != null)
+            {
+                RingRotator parentRotator = transform.parent.GetComponent<RingRotator>();
+                if (parentRotator != null) { lastPlatformSpeed = parentRotator.rotationSpeed; }
+            }
+
+            // --- THE FIX: Use correct casing 'InheritAirborneMomentum' ---
             if (GameSettings.Instance.InheritAirborneMomentum)
             {
-                if (transform.parent != null)
-                {
-                    RingRotator parentRotator = transform.parent.GetComponent<RingRotator>();
-                    if (parentRotator != null) { airborneRotator.rotationSpeed = parentRotator.rotationSpeed; }
-                }
+                airborneRotator.rotationSpeed = lastPlatformSpeed;
                 airborneRotator.enabled = true;
             }
-            else
-            {
-                airborneRotator.enabled = false;
-            }
+
+            if (modelRotator != null) { modelRotator.JumpedOffPlatform(lastPlatformSpeed); }
 
             transform.parent = null;
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
             AudioManager.Instance.PlayJumpSound();
-            wasAirborne = true;
         }
     }
 
@@ -67,23 +60,20 @@ public class PlayerController : MonoBehaviour
     {
         if (collision.GetContact(0).normal.y < -0.5f)
         {
-            PlatformSegmentController segment = collision.gameObject.GetComponent<PlatformSegmentController>();
-            if (segment != null)
-            {
-                segment.Explode(explosionForce, explosionRadius);
-                TimeManager.Instance.DoSlowmotion();
-                AudioManager.Instance.PlayExplosionSound();
-                transform.parent = null;
-                if (GameSettings.Instance.InheritAirborneMomentum) { airborneRotator.enabled = true; }
-            }
+            HandleHeadCollision(collision);
+            return;
         }
 
-        if (wasAirborne && collision.GetContact(0).normal.y > 0.5f)
+        if (collision.GetContact(0).normal.y > 0.5f)
         {
-            isFalling = false;
-            AudioManager.Instance.StopFallingWind();
-            AudioManager.Instance.PlayLandingSound();
-            wasAirborne = false;
+            HandleLanding(collision);
+        }
+    }
+
+    void OnCollisionStay(Collision collision)
+    {
+        if (isGrounded && transform.parent == null)
+        {
             RingRotator rotator = collision.gameObject.GetComponentInParent<RingRotator>();
             if (rotator != null)
             {
@@ -93,24 +83,52 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    private void HandleLanding(Collision collision)
+    {
+        if (!isGrounded)
+        {
+            isGrounded = true;
+            AudioManager.Instance.PlayLandingSound();
+            AudioManager.Instance.StopFallingWind();
+
+            float landingPlatformSpeed = 0;
+            RingRotator rotator = collision.gameObject.GetComponentInParent<RingRotator>();
+            if (rotator != null)
+            {
+                landingPlatformSpeed = rotator.rotationSpeed;
+            }
+            if (modelRotator != null) { modelRotator.LandedOnPlatform(landingPlatformSpeed); }
+        }
+    }
+
+    private void HandleHeadCollision(Collision collision)
+    {
+        PlatformSegmentController segment = collision.gameObject.GetComponent<PlatformSegmentController>();
+        if (segment != null)
+        {
+            segment.Explode(explosionForce, explosionRadius);
+            TimeManager.Instance.DoSlowmotion();
+            AudioManager.Instance.PlayExplosionSound();
+            transform.parent = null;
+            isGrounded = false;
+            // --- THE FIX: Use correct casing 'InheritAirborneMomentum' ---
+            if (GameSettings.Instance.InheritAirborneMomentum) { airborneRotator.enabled = true; }
+        }
+    }
+
     void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("DeathZone"))
         {
-            // --- THIS IS THE FIX ---
-            // 1. The player is no longer falling, they have impacted the ground.
-            isFalling = false;
-            // 2. Stop the wind sound.
             AudioManager.Instance.StopFallingWind();
-            // 3. Play a final landing/impact sound.
             AudioManager.Instance.PlayLandingSound();
 
-            // 4. Trigger the rest of the game over sequence.
             UIManager.Instance.ShowGameOver();
             this.enabled = false;
             rb.isKinematic = true;
             transform.parent = null;
             airborneRotator.enabled = false;
+            if (modelRotator != null) { modelRotator.StopAllRotation(); }
         }
     }
 }

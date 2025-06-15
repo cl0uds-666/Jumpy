@@ -10,16 +10,14 @@ public class UIManager : MonoBehaviour
 
     [Header("In-Game UI")]
     [SerializeField] private TextMeshProUGUI scoreText;
-    [SerializeField] private TextMeshProUGUI coinText; // NEW: The text to display total coins
+    [SerializeField] private TextMeshProUGUI coinText; // Ensure this is assigned in the Inspector
 
     [Header("Game Over UI")]
     [SerializeField] private TextMeshProUGUI finalScoreText;
     [SerializeField] private TextMeshProUGUI highScoreText;
 
     private int score = 0;
-    private int totalCoins = 0; // NEW: To track coins
     private const string HighScoreKey = "HighScore";
-    private const string TotalCoinsKey = "TotalCoins"; // NEW: For saving coins
 
     void Awake()
     {
@@ -31,10 +29,17 @@ public class UIManager : MonoBehaviour
         gameOverPanel.SetActive(false);
         score = 0;
         scoreText.text = "Score: " + score;
+        UpdateCoinDisplay(); // Update display when the game starts
+    }
 
-        // Load total coins from device memory
-        totalCoins = PlayerPrefs.GetInt(TotalCoinsKey, 0);
-        UpdateCoinText();
+    // --- NEW Public method to update the coin display ---
+    public void UpdateCoinDisplay()
+    {
+        if (coinText != null && InventoryManager.Instance != null)
+        {
+            // Always get the latest coin total from the single source of truth: InventoryManager
+            coinText.text = "Coins: " + InventoryManager.Instance.GetTotalCoins();
+        }
     }
 
     public void AddPoint()
@@ -42,23 +47,6 @@ public class UIManager : MonoBehaviour
         score++;
         scoreText.text = "Score: " + score;
     }
-
-    // --- NEW Coin Methods ---
-    public void AddCoin()
-    {
-        totalCoins++;
-        PlayerPrefs.SetInt(TotalCoinsKey, totalCoins); // Save immediately
-        UpdateCoinText();
-    }
-
-    private void UpdateCoinText()
-    {
-        if (coinText != null)
-        {
-            coinText.text = "Coins: " + totalCoins;
-        }
-    }
-    // --- End of New Methods ---
 
     public int GetCurrentScore()
     {
@@ -76,7 +64,7 @@ public class UIManager : MonoBehaviour
             PlayerPrefs.SetInt(HighScoreKey, highScore);
         }
 
-        PlayerPrefs.Save(); // Save both high score and any coins collected
+        PlayerPrefs.Save();
 
         finalScoreText.text = "Score: " + score;
         highScoreText.text = "High Score: " + highScore;
