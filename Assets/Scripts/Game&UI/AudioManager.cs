@@ -1,5 +1,5 @@
 using UnityEngine;
-using System.Collections; // Required for using Coroutines
+using System.Collections;
 
 public class AudioManager : MonoBehaviour
 {
@@ -14,27 +14,18 @@ public class AudioManager : MonoBehaviour
     [Header("Audio Clips - Loops")]
     [SerializeField] private AudioClip backgroundMusic;
     [SerializeField] private AudioClip fallingWindSound;
+    [SerializeField] private AudioClip rainSound;
 
     [Header("Volume & Mixing Controls")]
-    [Tooltip("The normal volume for the background music (0.0 to 1.0).")]
-    [Range(0f, 1f)]
-    [SerializeField] private float musicVolumeNormal = 0.5f;
-
-    [Tooltip("The reduced volume for the music when wind is playing (0.0 to 1.0).")]
-    [Range(0f, 1f)]
-    [SerializeField] private float musicVolumeDucked = 0.1f;
-
-    [Tooltip("How quickly the music volume changes.")]
+    [Range(0f, 1f)][SerializeField] private float musicVolumeNormal = 0.5f;
+    [Range(0f, 1f)][SerializeField] private float musicVolumeDucked = 0.1f;
     [SerializeField] private float duckingSpeed = 3f;
+    [Range(0f, 5f)][SerializeField] private float fallingWindVolume = 2.5f;
+    [Tooltip("Sets the volume for the looping rain sound.")]
+    [Range(0f, 1f)][SerializeField] private float rainVolume = 0.3f; // NEW
 
-    [Tooltip("Boost the volume of the falling wind sound (1 is normal).")]
-    [Range(0f, 5f)]
-    [SerializeField] private float fallingWindVolume = 2.5f;
-
-    private AudioSource sfxSource;
-    private AudioSource musicSource;
-    private AudioSource loopingSfxSource;
-    private Coroutine volumeCoroutine; // Holds our currently running volume-change coroutine
+    private AudioSource sfxSource, musicSource, loopingSfxSource, rainSource;
+    private Coroutine volumeCoroutine;
 
     void Awake()
     {
@@ -43,6 +34,7 @@ public class AudioManager : MonoBehaviour
         sfxSource = gameObject.AddComponent<AudioSource>();
         musicSource = gameObject.AddComponent<AudioSource>();
         loopingSfxSource = gameObject.AddComponent<AudioSource>();
+        rainSource = gameObject.AddComponent<AudioSource>();
 
         musicSource.clip = backgroundMusic;
         musicSource.loop = true;
@@ -50,16 +42,18 @@ public class AudioManager : MonoBehaviour
         loopingSfxSource.clip = fallingWindSound;
         loopingSfxSource.loop = true;
 
-        // Set the initial music volume
+        rainSource.clip = rainSound;
+        rainSource.loop = true;
+
         musicSource.volume = musicVolumeNormal;
+        // --- NEW: Set the rain volume ---
+        rainSource.volume = rainVolume;
     }
 
     void Start()
     {
-        if (musicSource.clip != null)
-        {
-            musicSource.Play();
-        }
+        if (musicSource.clip != null) musicSource.Play();
+        if (rainSource.clip != null) rainSource.Play();
     }
 
     public void PlayJumpSound() { if (jumpSound != null) sfxSource.PlayOneShot(jumpSound); }
@@ -71,11 +65,8 @@ public class AudioManager : MonoBehaviour
     {
         if (fallingWindSound != null && !loopingSfxSource.isPlaying)
         {
-            Debug.Log("AUDIO DEBUG: Trying to PLAY falling wind sound.");
             loopingSfxSource.volume = fallingWindVolume;
             loopingSfxSource.Play();
-
-            // --- DUCK THE MUSIC ---
             FadeMusic(musicVolumeDucked);
         }
     }
@@ -84,47 +75,28 @@ public class AudioManager : MonoBehaviour
     {
         if (loopingSfxSource.isPlaying)
         {
-            Debug.Log("AUDIO DEBUG: Trying to STOP falling wind sound.");
             loopingSfxSource.Stop();
             loopingSfxSource.volume = 1f;
-
-            // --- RESTORE THE MUSIC ---
             FadeMusic(musicVolumeNormal);
         }
     }
 
-    /// <summary>
-    /// Starts a coroutine to smoothly fade the music volume to a target level.
-    /// </summary>
     private void FadeMusic(float targetVolume)
     {
-        // If a volume coroutine is already running, stop it first.
-        if (volumeCoroutine != null)
-        {
-            StopCoroutine(volumeCoroutine);
-        }
-        // Start the new fade coroutine.
+        if (volumeCoroutine != null) StopCoroutine(volumeCoroutine);
         volumeCoroutine = StartCoroutine(FadeVolumeCoroutine(targetVolume));
     }
 
-    /// <summary>
-    /// A coroutine that smoothly changes the music volume over time.
-    /// </summary>
     private IEnumerator FadeVolumeCoroutine(float targetVolume)
     {
         float startVolume = musicSource.volume;
         float time = 0;
-
         while (time < 1f)
         {
-            // Increase time based on our ducking speed.
             time += Time.deltaTime * duckingSpeed;
-            // Lerp (linearly interpolate) from the start volume to the target volume.
             musicSource.volume = Mathf.Lerp(startVolume, targetVolume, time);
-            yield return null; // Wait for the next frame
+            yield return null;
         }
-
-        // Ensure the volume is exactly at the target at the end.
         musicSource.volume = targetVolume;
     }
 }

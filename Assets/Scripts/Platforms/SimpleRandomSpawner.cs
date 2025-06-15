@@ -1,13 +1,16 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-// This script spawns rings that get faster and more unpredictable as the score increases.
+// This script now correctly handles the start platform and randomizes the alternating pattern.
 public class SimpleRandomSpawner : MonoBehaviour
 {
     [Header("Required Objects")]
     [SerializeField] private Transform playerTransform;
 
     [Header("Ring Prefabs")]
+    [Tooltip("The prefab for the very first, non-moving ring.")]
+    [SerializeField] private GameObject startRingPrefab;
+    [Tooltip("The list of normal, gapped rings to spawn.")]
     [SerializeField] private GameObject[] ringPrefabs;
 
     [Header("Spawning Logic")]
@@ -15,19 +18,12 @@ public class SimpleRandomSpawner : MonoBehaviour
     [SerializeField] private int initialRings = 5;
 
     [Header("Rotation Speed Settings (Start)")]
-    [Tooltip("The minimum rotation speed at the start of the game.")]
     [SerializeField] private float minSpeed_Start = 30f;
-    [Tooltip("The maximum rotation speed at the start of the game.")]
     [SerializeField] private float maxSpeed_Start = 70f;
 
     [Header("Difficulty Scaling")]
-    [Tooltip("The score at which the game reaches maximum difficulty.")]
     [SerializeField] private int scoreToReachMaxDifficulty = 100;
-    [Tooltip("The maximum possible rotation speed when at max difficulty.")]
     [SerializeField] private float maxSpeed_End = 120f;
-    [Tooltip("At max difficulty, the chance (0.0 to 1.0) that a platform will ignore the alternating pattern and spin in a random direction.")]
-    [Range(0, 1)]
-    [SerializeField] private float randomDirectionChance_End = 0.25f; // 25% chance at max difficulty
 
     [Header("Optimization")]
     [SerializeField] private int poolSize = 15;
@@ -40,8 +36,12 @@ public class SimpleRandomSpawner : MonoBehaviour
 
     void Start()
     {
+        // --- NEW: Randomize the starting direction of the pattern ---
+        nextRingShouldSpinRight = (Random.value > 0.5f);
+
         InitializePool();
-        for (int i = 0; i < initialRings; i++)
+        SpawnFirstRing();
+        for (int i = 1; i < initialRings; i++)
         {
             SpawnRing();
         }
@@ -56,6 +56,26 @@ public class SimpleRandomSpawner : MonoBehaviour
         CleanupRings();
     }
 
+    void SpawnFirstRing()
+    {
+        if (startRingPrefab == null)
+        {
+            Debug.LogError("Start Ring Prefab is not assigned in the Spawner!");
+            return;
+        }
+        GameObject ring = Instantiate(startRingPrefab, transform.position, Quaternion.identity);
+
+        // --- NEW: Ensure the start ring is always stationary ---
+        RingRotator rotator = ring.GetComponent<RingRotator>();
+        if (rotator != null)
+        {
+            rotator.rotationSpeed = 0f; // Force the start ring to not move.
+        }
+
+        ActivateRing(ring);
+        nextSpawnY += verticalSpacing;
+    }
+
     void SpawnRing()
     {
         GameObject ring = GetPooledRing();
@@ -67,34 +87,19 @@ public class SimpleRandomSpawner : MonoBehaviour
         RingRotator rotator = ring.GetComponent<RingRotator>();
         if (rotator != null)
         {
-            // --- NEW: Difficulty Calculation ---
-            // 1. Get the current score from our UIManager.
             int currentScore = UIManager.Instance.GetCurrentScore();
-            // 2. Calculate a difficulty value from 0.0 to 1.0.
             float difficultyPercent = Mathf.Clamp01((float)currentScore / scoreToReachMaxDifficulty);
 
-            // 3. Use the difficulty value to interpolate the speed.
             float currentMinSpeed = Mathf.Lerp(minSpeed_Start, maxSpeed_End * 0.8f, difficultyPercent);
             float currentMaxSpeed = Mathf.Lerp(maxSpeed_Start, maxSpeed_End, difficultyPercent);
             float speed = Random.Range(currentMinSpeed, currentMaxSpeed);
 
-            // 4. Determine the direction.
-            bool spinRight = nextRingShouldSpinRight;
-            float directionChangeChance = Mathf.Lerp(0, randomDirectionChance_End, difficultyPercent);
-            if (Random.value < directionChangeChance)
-            {
-                // Ignore the pattern and pick a random direction.
-                spinRight = (Random.value < 0.5f);
-            }
-
-            if (!spinRight)
+            if (!nextRingShouldSpinRight)
             {
                 speed *= -1;
             }
 
             rotator.rotationSpeed = speed;
-
-            // 5. Flip the boolean for the *next* spawn's pattern.
             nextRingShouldSpinRight = !nextRingShouldSpinRight;
         }
 
@@ -127,8 +132,15 @@ public class SimpleRandomSpawner : MonoBehaviour
         while (activeRings.Count > 0 && activeRings.Peek().transform.position.y < playerTransform.position.y - cleanupDistance)
         {
             GameObject ringToCleanup = activeRings.Dequeue();
-            foreach (PlatformSegmentController segment in ringToCleanup.GetComponentsInChildren<PlatformSegmentController>()) { segment.ResetSegment(); }
-            ringToCleanup.SetActive(false);
+            if (ringToCleanup.GetComponent<RingRotator>() != null)
+            {
+                foreach (PlatformSegmentController segment in ringToCleanup.GetComponentsInChildren<PlatformSegmentController>()) { segment.ResetSegment(); }
+                ringToCleanup.SetActive(false);
+            }
+            else
+            {
+                Destroy(ringToCleanup);
+            }
         }
     }
 
