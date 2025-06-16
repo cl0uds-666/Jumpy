@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ce914fa785fa6c498d677e40baf90f8, type: 3}
+  m_Name: Item_RedDuck
+  m_EditorClassIdentifier: 
+  itemName: Red Duck
+  itemDescription: 
+  itemIcon: {fileID: 21300000, guid: bfe48f51aea3d3f4e9b2c593d6e90ad4, type: 3}
+  itemPrice: 20
+  itemType: 0
+  itemPrefab: {fileID: 144636, guid: 80e076b1af0088b4e83341bae6df0cb5, type: 3}
