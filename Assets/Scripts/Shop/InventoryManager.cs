@@ -1,7 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-// This attribute forces this script's Awake() method to run before all others.
 [DefaultExecutionOrder(-100)]
 public class InventoryManager : MonoBehaviour
 {
@@ -21,10 +20,24 @@ public class InventoryManager : MonoBehaviour
         else { Instance = this; DontDestroyOnLoad(gameObject); LoadData(); }
     }
 
-    public void AddCoins(int amount)
+    private void LoadData()
     {
-        totalCoins += amount;
-        SaveData();
+        totalCoins = PlayerPrefs.GetInt(TotalCoinsKey, 0);
+
+        string ownedItemsString = PlayerPrefs.GetString(OwnedItemsKey, "");
+        if (!string.IsNullOrEmpty(ownedItemsString))
+        {
+            ownedItemNames = new List<string>(ownedItemsString.Split(','));
+        }
+
+        // --- NEW LOGIC: Grant Default Items ---
+        // After loading, we check if the player owns the default shape. If not, we grant it for free.
+        // This ensures that even new players "own" the default cube.
+        if (!ownedItemNames.Contains("DefaultShape"))
+        {
+            ownedItemNames.Add("DefaultShape");
+        }
+        // You could add another check here for a "DefaultTrail" if you add one later.
     }
 
     public bool PurchaseItem(ShopItem item)
@@ -37,6 +50,14 @@ public class InventoryManager : MonoBehaviour
             return true;
         }
         return false;
+    }
+
+    // ... (The rest of the script is unchanged) ...
+    #region Unchanged Methods
+    public void AddCoins(int amount)
+    {
+        totalCoins += amount;
+        SaveData();
     }
 
     public void EquipItem(ShopItem item)
@@ -59,16 +80,5 @@ public class InventoryManager : MonoBehaviour
         PlayerPrefs.SetString(OwnedItemsKey, ownedItemsString);
         PlayerPrefs.Save();
     }
-
-    private void LoadData()
-    {
-        totalCoins = PlayerPrefs.GetInt(TotalCoinsKey, 0);
-        string ownedItemsString = PlayerPrefs.GetString(OwnedItemsKey, "");
-        if (!string.IsNullOrEmpty(ownedItemsString))
-        {
-            ownedItemNames = new List<string>(ownedItemsString.Split(','));
-        }
-        // --- ADDED DEBUG LOG ---
-        Debug.Log("InventoryManager loaded. Total coins from memory: " + totalCoins);
-    }
+    #endregion
 }

@@ -15,4 +15,14 @@ public class SceneLoader : MonoBehaviour
         // Reload the scene using its index.
         SceneManager.LoadScene(currentSceneIndex);
     }
+
+    public void LoadMenu()
+    {
+        // First, make sure time is back to normal before reloading.
+        Time.timeScale = 1f;
+
+
+        // load the scene using its name.
+        SceneManager.LoadScene("MainMenu");
+    }
 }

@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4ce914fa785fa6c498d677e40baf90f8, type: 3}
-  m_Name: Item_BlackDuck
+  m_Name: DefaultShape
   m_EditorClassIdentifier: 
-  itemName: Black Duck
+  itemName: White Cube
   itemDescription: 
-  itemIcon: {fileID: 21300000, guid: bdbb2146ba60c5144a69fc91f1b27992, type: 3}
-  itemPrice: 20
+  itemIcon: {fileID: 21300000, guid: 020c339e1e740e244896a687ce933856, type: 3}
+  itemPrice: 0
   itemType: 0
-  itemPrefab: {fileID: 111820, guid: efd1bfaf561eb024eb04cca4386b28b7, type: 3}
-  jumpSound: {fileID: 8300000, guid: 61564d63aef6736408b9dedab6cb0914, type: 3}
-  landingSound: {fileID: 8300000, guid: 9588ab7d2e1773648ad492b3cf3d0c0a, type: 3}
+  itemPrefab: {fileID: 8044099922849205341, guid: 47e31017df660c64f9deb7071312973b, type: 3}
+  jumpSound: {fileID: 8300000, guid: bea59c089390ce54c98bf71ab60322ca, type: 3}
+  landingSound: {fileID: 8300000, guid: 0917bbee0f191804cbb711d0c0e21918, type: 3}

@@ -4887,7 +4887,7 @@ MonoBehaviour:
   particleColor: {r: 1, g: 1, b: 1, a: 1}
   intensity: 1
   windDirection: {x: 0, y: 0, z: 0}
-  targetToFollow: {fileID: 0}
+  cameraToFollow: {fileID: 0}
   heightOffset: 15
 --- !u!1 &3512460350505651903
 GameObject:

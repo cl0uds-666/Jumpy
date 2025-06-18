@@ -1,99 +1,112 @@
 using UnityEngine;
 
+// We are using your original namespace to ensure compatibility.
 namespace VFXTools
 {
-    // This attribute makes the script run in the editor, so you can see changes live.
     [ExecuteAlways]
     public class VFXController : MonoBehaviour
     {
+        // --- Your original parameters from the asset store script ---
         [Header("Adjustable Parameters")]
-        [SerializeField] private Color particleColor = Color.white; // The colour of the particles.
-        [SerializeField, Range(0f, 4f)] private float intensity = 1f; // The intensity of the particle emission.
-        [SerializeField] private Vector3 windDirection = Vector3.zero; // The direction and strength of the wind effect.
+        [SerializeField] private Color particleColor = Color.white;
+        [SerializeField, Range(0f, 4f)] private float intensity = 1f;
+        [SerializeField] private Vector3 windDirection = Vector3.zero;
 
-        [Header("Vertical Tracking (Y-Axis)")]
-        [Tooltip("The Camera or Player's Transform to follow.")]
-        [SerializeField] private Transform targetToFollow;
-        [Tooltip("The height above the target where the effect should appear.")]
+        // --- The tracking parameters we added ---
+        [Header("Vertical Tracking & Camera Facing")]
+        [SerializeField] private Transform cameraToFollow;
         [SerializeField] private float heightOffset = 15f;
 
         // --- Private Variables ---
-        private ParticleSystem[] particleSystems; // A list of all particle systems that are children of this object.
-        private float[] defaultRateOverTimeValues; // The default emission rate for each particle system.
+        private ParticleSystem[] particleSystems;
+        private float[] defaultRateOverTimeValues;
+        private bool isVfxCurrentlyEnabled = true;
 
         void Awake()
         {
-            // Apply the settings when the game starts.
-            ApplySettings();
-        }
-
-        // This function is called in the editor whenever you change a value in the Inspector.
-        void OnValidate()
-        {
-            ApplySettings();
-        }
-
-        // This function runs when the effect needs to follow the target.
-        void LateUpdate()
-        {
-            // If a target has been assigned, make this object follow its Y position.
-            if (targetToFollow != null)
-            {
-                // The effect's X and Z position should always be at the world center (0, 0).
-                float x = 0;
-                float z = 0;
-
-                // The effect's Y position is always based on the target's current height, plus an offset.
-                float y = targetToFollow.position.y + heightOffset;
-
-                // Apply the new position.
-                transform.position = new Vector3(x, y, z);
-            }
-        }
-
-        /// <summary>
-        /// Finds all ParticleSystem components in the children of this GameObject.
-        /// </summary>
-        void FindParticles()
-        {
+            // Find all particle systems attached to this object and its children once.
             particleSystems = GetComponentsInChildren<ParticleSystem>();
+            // We also need to initialize the default rates array.
             defaultRateOverTimeValues = new float[particleSystems.Length];
         }
 
-        /// <summary>
-        /// Applies all the public parameter settings to the actual particle systems.
-        /// </summary>
-        private void ApplySettings()
+        // This is your original function for live editor updates.
+        void OnValidate()
         {
-            // If we haven't found the particle systems yet, find them now.
+            // We need to make sure we've found the particle systems before trying to apply settings.
             if (particleSystems == null || particleSystems.Length == 0)
             {
-                FindParticles();
+                Awake();
+            }
+            ApplyVisualSettings();
+        }
+
+        void LateUpdate()
+        {
+            // This part handles the visual following and rotation.
+            if (cameraToFollow != null)
+            {
+                transform.position = new Vector3(0, cameraToFollow.position.y + heightOffset, 0);
+                transform.rotation = cameraToFollow.rotation;
             }
 
-            // Loop through each particle system and apply the settings.
+            // --- VFX TOGGLE LOGIC ---
+            // Only run this logic when the game is actually playing.
+            if (Application.isPlaying && SettingsManager.Instance != null)
+            {
+                // Get the desired state from our central Settings Manager.
+                bool vfxShouldBeEnabled = SettingsManager.Instance.VfxEnabled;
+
+                // If the setting has changed from our current state...
+                if (vfxShouldBeEnabled != isVfxCurrentlyEnabled)
+                {
+                    // ...update our current state tracker.
+                    isVfxCurrentlyEnabled = vfxShouldBeEnabled;
+
+                    // And then loop through all our particle systems.
+                    foreach (var ps in particleSystems)
+                    {
+                        if (ps == null) continue;
+
+                        var emission = ps.emission;
+                        // Simply enable or disable the emission module. This is the correct way.
+                        emission.enabled = isVfxCurrentlyEnabled;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// This is your original ApplySettings function, now renamed to be clearer.
+        /// </summary>
+        private void ApplyVisualSettings()
+        {
+            if (particleSystems == null || particleSystems.Length == 0)
+            {
+                Awake();
+            }
+
             for (int i = 0; i < particleSystems.Length; i++)
             {
                 var ps = particleSystems[i];
+                if (ps == null) continue;
+
                 var main = ps.main;
                 var emission = ps.emission;
                 var velocityOverLifetime = ps.velocityOverLifetime;
 
-                // Apply color
                 main.startColor = particleColor;
 
-                // Store the default emission rate if we haven't already.
-                if (defaultRateOverTimeValues[i] == 0f)
+                // This check was causing issues in the editor, moved it to a safer place.
+                if (defaultRateOverTimeValues[i] == 0f && emission.rateOverTime.constant > 0)
                 {
                     defaultRateOverTimeValues[i] = emission.rateOverTime.constant;
                 }
 
-                // Apply intensity by modifying the emission rate.
                 var rate = emission.rateOverTime;
                 rate.constant = defaultRateOverTimeValues[i] * intensity;
                 emission.rateOverTime = rate;
 
-                // Apply wind direction
                 if (velocityOverLifetime.enabled)
                 {
                     velocityOverLifetime.x = windDirection.x;
@@ -103,38 +116,29 @@ namespace VFXTools
             }
         }
 
-        // --- Public methods for changing settings from other scripts ---
+        #region Public Setters/Getters
+        // These are your original public functions.
         public void SetParticleColor(Color newColor)
         {
             particleColor = newColor;
-            ApplySettings();
+            ApplyVisualSettings();
         }
 
         public void SetIntensity(float newIntensity)
         {
             intensity = Mathf.Clamp(newIntensity, 0f, 4f);
-            ApplySettings();
+            ApplyVisualSettings();
         }
 
         public void SetWindDirection(Vector3 newWindDirection)
         {
             windDirection = newWindDirection;
-            ApplySettings();
+            ApplyVisualSettings();
         }
 
-        public Color GetParticleColor()
-        {
-            return particleColor;
-        }
-
-        public float GetIntensity()
-        {
-            return intensity;
-        }
-
-        public Vector3 GetWindDirection()
-        {
-            return windDirection;
-        }
+        public Color GetParticleColor() { return particleColor; }
+        public float GetIntensity() { return intensity; }
+        public Vector3 GetWindDirection() { return windDirection; }
+        #endregion
     }
 }

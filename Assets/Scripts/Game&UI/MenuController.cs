@@ -1,58 +1,61 @@
 using UnityEngine;
-using UnityEngine.SceneManagement; // Required for loading scenes
+using UnityEngine.SceneManagement;
 
 public class MenuController : MonoBehaviour
 {
     [Header("UI Panels")]
     [Tooltip("The main menu panel with the Play and Quit buttons.")]
     [SerializeField] private GameObject mainMenuPanel;
-    [Tooltip("The shop panel that you want to show.")]
+    [Tooltip("The shop panel.")]
     [SerializeField] private GameObject shopPanel;
+    [Tooltip("The settings/options panel.")]
+    [SerializeField] private GameObject optionsPanel; // NEW
 
     [Header("Scene To Load")]
-    [Tooltip("The exact name of your main gameplay scene file.")]
-    [SerializeField] private string gameSceneName = "MainGame"; // IMPORTANT: Change this to your scene's name
+    [SerializeField] private string gameSceneName = "MainGame";
 
     void Start()
     {
-        // At the start, ensure the main menu is visible and the shop is hidden.
+        // At the start, ensure only the main menu is visible.
         mainMenuPanel.SetActive(true);
         shopPanel.SetActive(false);
+        optionsPanel.SetActive(false);
     }
 
-    /// <summary>
-    /// Called by the Play button.
-    /// </summary>
     public void PlayGame()
     {
-        // Loads the main gameplay scene.
         SceneManager.LoadScene(gameSceneName);
     }
 
-    /// <summary>
-    /// Called by the Shop button.
-    /// </summary>
     public void OpenShop()
     {
-        // Hides the main menu and shows the shop.
         mainMenuPanel.SetActive(false);
         shopPanel.SetActive(true);
     }
 
-    /// <summary>
-    /// Called by the Quit button.
-    /// </summary>
-    public void QuitGame()
-    {
-        // This will only work in a built game, not in the editor.
-        Debug.Log("Quitting game...");
-        Application.Quit();
-    }
-
-    // You will need a "Back" button inside your ShopPanel that calls this function.
     public void CloseShop()
     {
         shopPanel.SetActive(false);
         mainMenuPanel.SetActive(true);
+    }
+
+    // --- NEW METHODS for Options Panel ---
+    public void OpenOptions()
+    {
+        mainMenuPanel.SetActive(false);
+        optionsPanel.SetActive(true);
+    }
+
+    public void CloseOptions()
+    {
+        optionsPanel.SetActive(false);
+        mainMenuPanel.SetActive(true);
+    }
+    // --- End of New Methods ---
+
+    public void QuitGame()
+    {
+        Debug.Log("Quitting game...");
+        Application.Quit();
     }
 }
